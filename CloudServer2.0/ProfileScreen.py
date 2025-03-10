@@ -3,12 +3,12 @@ import os.path
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtGui import QAction
 
+from FileWidget import FileWidget
 from ProfileSettingsScreen import ProfileSettingsWindow
-from Client import uploadFile,deleteFile
+from Client import uploadFile,listFiles
 from PyQt6.QtWidgets import QMainWindow, QFileDialog, QMessageBox, QMenu
 
 
-from FileWidget import FileWidget
 
 
 
@@ -16,9 +16,26 @@ class ProfileWindow(QMainWindow):
     def __init__(self,clientSocket,user):
         super().__init__()
         self.clientSocket=clientSocket
-        self.user=user
+        if isinstance(user, bool):
+            self.authenticated = user
+            self.username = ""
+            self.password = ""
+            self.user = {'authenticated': user}
+        elif isinstance(user, dict):
+            self.authenticated = True
+            self.username = user.get('username', '')
+            self.password = user.get('password', '')
+            self.user = user
+        else:
+            self.authenticated = False
+            self.username = ""
+            self.password = ""
+            self.user = {'authenticated': False}
         self.setupUi(self)
         self.file_count=0
+        self.fileWidgets=[]
+
+
 
 
 
@@ -42,11 +59,11 @@ class ProfileWindow(QMainWindow):
         self.accountSettingsButton.setGeometry(QtCore.QRect(650, 50, 141, 32))
         self.accountSettingsButton.setStyleSheet("background-color: rgb(46,80,80)")
         self.accountSettingsButton.setObjectName("accountSettingsButton")
-        self.accountSettingsButton.clicked.connect(self.goToProfileSettings)
+        self.accountSettingsButton.clicked.connect(self.openProfileSettings)
 
         self.scrollArea = QtWidgets.QScrollArea(parent=self.centralwidget)
         self.scrollArea.setGeometry(QtCore.QRect(20, 220, 761, 341))
-        self.scrollArea.setWidgetResizable(True)  # Allow the widget to resize
+        self.scrollArea.setWidgetResizable(True)
         self.scrollArea.setObjectName("scrollArea")
 
         self.scrollAreaWidgetContents = QtWidgets.QWidget()
@@ -103,6 +120,7 @@ class ProfileWindow(QMainWindow):
             QMessageBox.warning(self, "Upload Failed", str(e))
 
 
+
     def addFileToGrid(self, filename):
         fileIcon = QtGui.QIcon("file.png")
         iconLabel = QtWidgets.QLabel()
@@ -111,7 +129,8 @@ class ProfileWindow(QMainWindow):
 
         nameLabel = QtWidgets.QLabel(filename)
         nameLabel.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        fileWidget = FileWidget(filename, self.clientSocket, self)
+        fileWidget = FileWidget(filename, self.clientSocket,self.user, self)
+        self.fileWidgets.append(fileWidget)
 
         currentRow = self.file_count // 4
         currentColumn = self.file_count % 4
@@ -119,6 +138,50 @@ class ProfileWindow(QMainWindow):
         self.gridLayout.setSpacing(2)
         self.gridLayout.addWidget(fileWidget, currentRow, currentColumn)
         self.file_count += 1
+
+    def removeFileFromGrid(self, filename):
+        for i, fileWidget in enumerate(self.fileWidgets):
+            if fileWidget.filename == filename:
+                self.gridLayout.removeWidget(fileWidget)
+                fileWidget.deleteLater()
+                self.fileWidgets.pop(i)
+                self.file_count -= 1
+                self.rearrangeGrid()
+                break
+
+
+
+
+
+    def rearrangeGrid(self):
+        for i in reversed(range(self.gridLayout.count())):
+            widget = self.gridLayout.itemAt(i).widget()
+            if widget:
+                widget.setParent(None)
+
+        for i, fileWidget in enumerate(self.fileWidgets):
+            currentRow = i // 4
+            currentColumn = i % 4
+            self.gridLayout.addWidget(fileWidget, currentRow, currentColumn)
+
+        self.scrollAreaWidgetContents.update()
+
+
+    def displayUserFiles(self):
+        try:
+            response = listFiles(self.clientSocket)
+            if response and response != "No files uploaded.":
+                fileList = response.split("\n")
+
+                for filename in fileList:
+                    print(f"  - {filename}")
+                    self.addFileToGrid(filename)
+            else:
+                QMessageBox.information(self, "No Files", "No files uploaded.")
+        except Exception as e:
+            QMessageBox.warning(self, "Displaying uploaded files failed", str(e))
+
+
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -130,10 +193,16 @@ class ProfileWindow(QMainWindow):
         self.helloLabel_2.setText(_translate("MainWindow", "TextLabel"))
 
 
-    def goToProfileSettings(self):
-        self.profileSettingsWindow=ProfileSettingsWindow(self.clientSocket,self.user)
-        self.profileSettingsWindow.show()
-        self.mainWindow.close()
+
+    def openProfileSettings(self):
+        self.profileSettings = ProfileSettingsWindow(
+            self.clientSocket,
+            {'username': self.username, 'password': self.password},
+            self
+        )
+        self.profileSettings.show()
+        self.hide()
+
 
 
 
