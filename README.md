@@ -14,7 +14,6 @@ SimpleCloudServer is a lightweight cloud storage system that enables users to re
 - **Python 3**: The primary programming language.
 - **Sockets**: For client-server communication.
 - **JSON**: For user management.
-- **OS**: For file operations.
 - **Hashlib**: For password hashing.
 - **Urllib.parse**: For safe filename transmission.
 - **PyQT6**: For the user interface.
