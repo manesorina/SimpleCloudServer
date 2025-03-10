@@ -1,10 +1,11 @@
-from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtGui import QIcon, QPalette, QColor
+from PyQt6 import QtCore,  QtWidgets
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QDialog, QLineEdit, QFormLayout, QPushButton, QMessageBox, QMainWindow
 
 from Client import loginUser,registerUser
 from Server import authenticateUser
 from ProfileScreen import ProfileWindow
+
 
 
 class Ui_MainWindow(object):
@@ -45,6 +46,8 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
+
+
     def loginHandler(self):
         dialog = QDialog()
         dialog.setWindowTitle("Login")
@@ -63,6 +66,10 @@ class Ui_MainWindow(object):
 
         dialog.exec()
 
+
+
+
+
     def authenticate(self, username, password, dialog,main_window):
         response, message = loginUser(self.clientSocket, username, password)
         if response:
@@ -71,6 +78,9 @@ class Ui_MainWindow(object):
             self.goToProfile(username, password,dialog,main_window)
         else:
             QMessageBox.warning(dialog.parent(), "Login Failed", message)
+
+
+
 
 
 
@@ -94,6 +104,10 @@ class Ui_MainWindow(object):
         dialog.exec()
 
 
+
+
+
+
     def register(self,username,password,dialog):
         if self.clientSocket.fileno() == -1:
             QMessageBox.critical(dialog.parent(), "Connection Error", "Failed to connect to the server. Please try again later.")
@@ -111,14 +125,25 @@ class Ui_MainWindow(object):
 
 
 
+
+
     def goToProfile(self,username,password,dialog,main_window):
-        user=authenticateUser(username,password)
-        if user:
-            self.profileWindow=ProfileWindow(self.clientSocket,user)
+        authenticated=authenticateUser(username,password)
+
+        if authenticated:
+            userData={
+                'username': username,
+                'password': password
+            }
+
+            self.profileWindow=ProfileWindow(self.clientSocket,userData)
+            self.profileWindow.displayUserFiles()
             self.profileWindow.show()
             main_window.close()
+
         else:
             QMessageBox.warning(dialog.parent(),"Error","User not found")
+
 
 
 
